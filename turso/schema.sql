@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS menu_items (
   price INTEGER NOT NULL CHECK (price >= 0),
   category TEXT NOT NULL DEFAULT 'Lainnya',
   is_available INTEGER NOT NULL DEFAULT 1,
+  image_url TEXT,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );

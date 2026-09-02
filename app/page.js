@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api, POLL_INTERVAL } from '@/lib/apiClient';
 import { formatRupiah, formatClock } from '@/lib/format';
 import { STATUS } from '@/lib/statusConfig';
-import { Plus, Minus, ShoppingBag, X, Check, Printer, Search } from 'lucide-react';
+import { Plus, Minus, ShoppingBag, X, Check, Printer, Search, ImageOff } from 'lucide-react';
 import Spinner from '@/components/Spinner';
 
 export default function KasirPage() {
@@ -175,45 +175,58 @@ export default function KasirPage() {
             <div
               key={item.id}
               style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
-              className="bg-white rounded-3xl p-3.5 flex flex-col shadow-[0_2px_14px_rgba(28,25,23,0.06)] border border-stone-50 animate-fade-in-up"
+              className="bg-white rounded-3xl overflow-hidden flex flex-col shadow-[0_2px_14px_rgba(28,25,23,0.06)] border border-stone-50 animate-fade-in-up"
             >
-              <span className="inline-block self-start text-[10px] font-bold uppercase tracking-wide text-primary-700 bg-primary-50 rounded-full px-2 py-0.5 mb-2">
-                {item.category}
-              </span>
-              <p className="font-bold text-sm text-stone-900 leading-snug mb-3">{item.name}</p>
-              <div className="mt-auto flex items-center justify-between">
-                <span className="text-sm font-extrabold text-stone-900 font-mono">
-                  {formatRupiah(item.price)}
-                </span>
-                {qty === 0 ? (
-                  <button
-                    onClick={() => addToCart(item.id)}
-                    className="w-9 h-9 rounded-full bg-primary-500 text-stone-900 flex items-center justify-center active:scale-90 transition-transform shadow-sm"
-                    aria-label={`Tambah ${item.name}`}
-                  >
-                    <Plus size={18} strokeWidth={2.5} />
-                  </button>
+              <div className="w-full aspect-square bg-stone-100 flex items-center justify-center overflow-hidden">
+                {item.image_url ? (
+                  <img
+                    src={item.image_url}
+                    alt={item.name}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
-                  <div className="flex items-center gap-1.5 bg-stone-900 rounded-full pl-1 pr-1 py-1">
-                    <button
-                      onClick={() => decFromCart(item.id)}
-                      className="w-7 h-7 rounded-full bg-primary-500 text-stone-900 flex items-center justify-center"
-                      aria-label={`Kurangi ${item.name}`}
-                    >
-                      <Minus size={14} strokeWidth={2.5} />
-                    </button>
-                    <span className="text-sm font-bold w-4 text-center font-mono text-white">
-                      {qty}
-                    </span>
+                  <ImageOff size={26} className="text-stone-300" />
+                )}
+              </div>
+              <div className="p-3.5 flex flex-col flex-1">
+                <span className="inline-block self-start text-[10px] font-bold uppercase tracking-wide text-primary-700 bg-primary-50 rounded-full px-2 py-0.5 mb-2">
+                  {item.category}
+                </span>
+                <p className="font-bold text-sm text-stone-900 leading-snug mb-3">{item.name}</p>
+                <div className="mt-auto flex items-center justify-between">
+                  <span className="text-sm font-extrabold text-stone-900 font-mono">
+                    {formatRupiah(item.price)}
+                  </span>
+                  {qty === 0 ? (
                     <button
                       onClick={() => addToCart(item.id)}
-                      className="w-7 h-7 rounded-full bg-primary-500 text-stone-900 flex items-center justify-center"
+                      className="w-9 h-9 rounded-full bg-primary-500 text-stone-900 flex items-center justify-center active:scale-90 transition-transform shadow-sm"
                       aria-label={`Tambah ${item.name}`}
                     >
-                      <Plus size={14} strokeWidth={2.5} />
+                      <Plus size={18} strokeWidth={2.5} />
                     </button>
-                  </div>
-                )}
+                  ) : (
+                    <div className="flex items-center gap-1.5 bg-stone-900 rounded-full pl-1 pr-1 py-1">
+                      <button
+                        onClick={() => decFromCart(item.id)}
+                        className="w-7 h-7 rounded-full bg-primary-500 text-stone-900 flex items-center justify-center"
+                        aria-label={`Kurangi ${item.name}`}
+                      >
+                        <Minus size={14} strokeWidth={2.5} />
+                      </button>
+                      <span className="text-sm font-bold w-4 text-center font-mono text-white">
+                        {qty}
+                      </span>
+                      <button
+                        onClick={() => addToCart(item.id)}
+                        className="w-7 h-7 rounded-full bg-primary-500 text-stone-900 flex items-center justify-center"
+                        aria-label={`Tambah ${item.name}`}
+                      >
+                        <Plus size={14} strokeWidth={2.5} />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           );

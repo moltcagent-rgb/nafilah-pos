@@ -5,16 +5,18 @@ export const dynamic = 'force-dynamic';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, POLL_INTERVAL } from '@/lib/apiClient';
 import { formatRupiah } from '@/lib/format';
-import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { resizeImageToDataUrl } from '@/lib/imageUtils';
+import { Plus, Pencil, Trash2, X, ImagePlus, ImageOff } from 'lucide-react';
 import Spinner from '@/components/Spinner';
 
-const EMPTY_FORM = { id: null, name: '', price: '', category: '', is_available: true };
+const EMPTY_FORM = { id: null, name: '', price: '', category: '', is_available: true, image_url: null };
 
 export default function MenuPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [imageProcessing, setImageProcessing] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -58,7 +60,23 @@ export default function MenuPage() {
       price: String(item.price),
       category: item.category || '',
       is_available: item.is_available,
+      image_url: item.image_url || null,
     });
+  }
+
+  async function handleImageChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // biar bisa pilih file yang sama lagi kalau perlu
+    if (!file) return;
+    setImageProcessing(true);
+    try {
+      const dataUrl = await resizeImageToDataUrl(file);
+      setForm((f) => ({ ...f, image_url: dataUrl }));
+    } catch (err) {
+      alert('Gagal memproses foto: ' + err.message);
+    } finally {
+      setImageProcessing(false);
+    }
   }
 
   async function save() {
@@ -73,6 +91,7 @@ export default function MenuPage() {
       price: Number(form.price),
       category: form.category.trim() || 'Lainnya',
       is_available: form.is_available,
+      image_url: form.image_url || null,
     };
 
     try {
@@ -135,6 +154,17 @@ export default function MenuPage() {
                   style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
                   className="bg-white rounded-3xl p-3.5 flex items-center gap-3 shadow-[0_2px_14px_rgba(28,25,23,0.06)] border border-stone-50 animate-fade-in-up"
                 >
+                  <div className="w-14 h-14 rounded-2xl overflow-hidden bg-stone-100 flex items-center justify-center shrink-0">
+                    {item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt={item.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <ImageOff size={18} className="text-stone-300" />
+                    )}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm text-stone-900 truncate">{item.name}</p>
                     <p className="text-sm text-stone-900 font-extrabold font-mono">
@@ -202,6 +232,51 @@ export default function MenuPage() {
 
             <div className="space-y-4">
               <div>
+                <label className="text-xs font-bold text-stone-500 mb-1.5 block">
+                  Foto Menu (opsional)
+                </label>
+                <div className="flex items-center gap-3">
+                  <div className="w-20 h-20 rounded-2xl overflow-hidden bg-stone-100 flex items-center justify-center shrink-0">
+                    {form.image_url ? (
+                      <img
+                        src={form.image_url}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <ImagePlus size={24} className="text-stone-300" />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <label className="inline-block">
+                      <span className="inline-block bg-stone-100 text-stone-700 text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer active:scale-95 transition-transform">
+                        {imageProcessing
+                          ? 'Memproses...'
+                          : form.image_url
+                            ? 'Ganti Foto'
+                            : 'Pilih Foto'}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={imageProcessing}
+                        onChange={handleImageChange}
+                      />
+                    </label>
+                    {form.image_url && (
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, image_url: null })}
+                        className="block text-xs font-bold text-red-500"
+                      >
+                        Hapus foto
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div>
                 <label className="text-xs font-bold text-stone-500 mb-1.5 block">Nama Menu</label>
                 <input
                   type="text"
@@ -255,7 +330,7 @@ export default function MenuPage() {
 
             <button
               onClick={save}
-              disabled={saving}
+              disabled={saving || imageProcessing}
               className="w-full bg-primary-500 text-stone-900 rounded-2xl py-4 font-extrabold text-sm mt-6 disabled:opacity-60 btn-shine"
             >
               {saving ? 'Menyimpan...' : 'Simpan'}
