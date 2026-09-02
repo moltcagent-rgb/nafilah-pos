@@ -35,25 +35,38 @@ export default function OrderNotifier() {
     return audioCtxRef.current;
   }
 
-  function playBeep() {
+  function playSiren() {
     try {
       const ctx = ensureAudioContext();
-      // dua nada pendek ("ting-ting") biar kedengaran jelas tapi tidak mengagetkan
-      [880, 1046.5].forEach((freq, i) => {
-        const delay = i * 0.16;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        const start = ctx.currentTime + delay;
-        gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(0.35, start + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.18);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(start);
-        osc.stop(start + 0.2);
-      });
+      const now = ctx.currentTime;
+      const duration = 3.2; // total durasi bunyi (detik)
+      const low = 500; // Hz, nada rendah
+      const high = 1100; // Hz, nada tinggi
+      const cycles = 4; // jumlah naik-turun ("wee-oo wee-oo ...")
+      const cycleDuration = duration / cycles;
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      // envelope: fade in cepat, tahan, fade out di akhir
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.4, now + 0.08);
+      gain.gain.setValueAtTime(0.4, now + duration - 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+      // sapuan frekuensi naik-turun berulang, khas sirene
+      osc.frequency.setValueAtTime(low, now);
+      for (let i = 0; i < cycles; i++) {
+        const cycleStart = now + i * cycleDuration;
+        osc.frequency.linearRampToValueAtTime(high, cycleStart + cycleDuration / 2);
+        osc.frequency.linearRampToValueAtTime(low, cycleStart + cycleDuration);
+      }
+
+      osc.start(now);
+      osc.stop(now + duration + 0.05);
     } catch (err) {
       console.error('Gagal memutar bunyi notifikasi:', err);
     }
@@ -80,7 +93,7 @@ export default function OrderNotifier() {
     }
     // aktifkan dalam event klik langsung, supaya browser mengizinkan bunyi
     ensureAudioContext();
-    playBeep();
+    playSiren();
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
@@ -112,7 +125,7 @@ export default function OrderNotifier() {
         knownIdsRef.current = currentIds;
 
         if (newOnes.length > 0 && enabledRef.current) {
-          playBeep();
+          playSiren();
           newOnes.forEach(showBrowserNotification);
         }
       } catch (err) {
