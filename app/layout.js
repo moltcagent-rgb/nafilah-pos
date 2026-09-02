@@ -1,6 +1,7 @@
 import { Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import BottomNav from '@/components/BottomNav';
+import OrderNotifier from '@/components/OrderNotifier';
 
 const sans = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -45,6 +46,7 @@ export default function RootLayout({ children }) {
           </div>
           {children}
         </div>
+        <OrderNotifier />
         <BottomNav />
       </body>
     </html>
