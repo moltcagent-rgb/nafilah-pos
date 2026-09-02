@@ -26,6 +26,17 @@ export default function OrderNotifier() {
     enabledRef.current = stored;
   }, []);
 
+  // Daftarkan service worker sekali di awal — wajib supaya notifikasi
+  // benar-benar muncul di tray notifikasi Android (Chrome di Android tidak
+  // mengizinkan `new Notification()` langsung tanpa service worker).
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch((err) => {
+        console.error('Gagal mendaftarkan service worker:', err);
+      });
+    }
+  }, []);
+
   function ensureAudioContext() {
     if (!audioCtxRef.current) {
       const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -105,28 +116,44 @@ export default function OrderNotifier() {
     }
   }
 
-  function showBrowserNotification(order) {
+  // Menampilkan notifikasi lewat service worker (registration.showNotification)
+  // kalau tersedia — ini yang membuatnya benar-benar muncul di tray notifikasi
+  // HP Android. Kalau service worker belum siap (mis. di beberapa browser
+  // desktop lama), jatuh balik ke `new Notification()` biasa.
+  async function notify(title, options) {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     try {
-      new Notification('Pesanan baru masuk', {
-        body: order.order_number ? `Nota #${order.order_number}` : 'Ada pesanan baru masuk',
-        icon: '/icon-192.png',
-      });
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.ready;
+        if (registration && registration.showNotification) {
+          await registration.showNotification(title, options);
+          return;
+        }
+      }
+      new Notification(title, options);
     } catch (err) {
-      console.error(err);
+      console.error('Gagal menampilkan notifikasi:', err);
     }
   }
 
+  function showBrowserNotification(order) {
+    notify('Pesanan baru masuk', {
+      body: order.order_number ? `Nota #${order.order_number}` : 'Ada pesanan baru masuk',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: `order-new-${order.id}`,
+      vibrate: [200, 100, 200],
+    });
+  }
+
   function showReadyNotification(order) {
-    if (!('Notification' in window) || Notification.permission !== 'granted') return;
-    try {
-      new Notification('Pesanan siap diambil', {
-        body: order.order_number ? `Nota #${order.order_number} sudah siap` : 'Ada pesanan yang siap diambil',
-        icon: '/icon-192.png',
-      });
-    } catch (err) {
-      console.error(err);
-    }
+    notify('Pesanan siap diambil', {
+      body: order.order_number ? `Nota #${order.order_number} sudah siap` : 'Ada pesanan yang siap diambil',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: `order-ready-${order.id}`,
+      vibrate: [200, 100, 200],
+    });
   }
 
   function toggle() {
