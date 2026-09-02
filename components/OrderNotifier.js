@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { api, POLL_INTERVAL } from '@/lib/apiClient';
+import { STATUS } from '@/lib/statusConfig';
 
 const SOUND_KEY = 'nafilah_pos_sound_enabled';
 
@@ -16,6 +17,7 @@ export default function OrderNotifier() {
   const [justEnabled, setJustEnabled] = useState(false);
   const audioCtxRef = useRef(null);
   const knownIdsRef = useRef(null); // null = belum pernah load sama sekali
+  const statusMapRef = useRef(new Map()); // id -> status terakhir yang tercatat
   const enabledRef = useRef(false);
 
   useEffect(() => {
@@ -72,11 +74,54 @@ export default function OrderNotifier() {
     }
   }
 
+  // Bunyi khusus saat pesanan berubah status jadi "Siap Diambil" — bel/lonceng
+  // melodi naik-turun (bukan sapuan sirene), tapi tetap agak panjang biar
+  // kedengaran jelas.
+  function playReadyChime() {
+    try {
+      const ctx = ensureAudioContext();
+      const now = ctx.currentTime;
+      const up = [659.25, 783.99, 987.77, 1318.51]; // E5, G5, B5, E6
+      const sequence = [...up, ...up.slice().reverse()]; // naik lalu turun lagi
+      const noteGap = 0.22;
+      const noteDuration = 0.9;
+
+      sequence.forEach((freq, i) => {
+        const start = now + i * noteGap;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle'; // lebih lembut & "berdenting" dibanding sine polos
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.3, start + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + noteDuration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + noteDuration + 0.05);
+      });
+    } catch (err) {
+      console.error('Gagal memutar bunyi notifikasi:', err);
+    }
+  }
+
   function showBrowserNotification(order) {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     try {
       new Notification('Pesanan baru masuk', {
         body: order.order_number ? `Nota #${order.order_number}` : 'Ada pesanan baru masuk',
+        icon: '/icon-192.png',
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  function showReadyNotification(order) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    try {
+      new Notification('Pesanan siap diambil', {
+        body: order.order_number ? `Nota #${order.order_number} sudah siap` : 'Ada pesanan yang siap diambil',
         icon: '/icon-192.png',
       });
     } catch (err) {
@@ -109,24 +154,37 @@ export default function OrderNotifier() {
 
     async function poll() {
       try {
-        const orders = await api.listOrders({ limit: 15 });
+        const orders = await api.listOrders({ limit: 30 });
         if (!mounted) return;
 
         const currentIds = new Set(orders.map((o) => o.id));
+        const currentStatusMap = new Map(orders.map((o) => [o.id, o.status]));
 
         if (knownIdsRef.current === null) {
           // load pertama kali: cuma catat, jangan bunyi (biar tidak nyanyi
           // buat pesanan lama yang sudah ada sebelum halaman dibuka)
           knownIdsRef.current = currentIds;
+          statusMapRef.current = currentStatusMap;
           return;
         }
 
         const newOnes = orders.filter((o) => !knownIdsRef.current.has(o.id));
-        knownIdsRef.current = currentIds;
+        const justReady = orders.filter(
+          (o) => o.status === STATUS.SIAP && statusMapRef.current.get(o.id) !== STATUS.SIAP
+        );
 
-        if (newOnes.length > 0 && enabledRef.current) {
-          playSiren();
-          newOnes.forEach(showBrowserNotification);
+        knownIdsRef.current = currentIds;
+        statusMapRef.current = currentStatusMap;
+
+        if (enabledRef.current) {
+          if (newOnes.length > 0) {
+            playSiren();
+            newOnes.forEach(showBrowserNotification);
+          }
+          if (justReady.length > 0) {
+            playReadyChime();
+            justReady.forEach(showReadyNotification);
+          }
         }
       } catch (err) {
         console.error(err);
