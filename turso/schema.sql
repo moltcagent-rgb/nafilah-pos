@@ -29,6 +29,9 @@ CREATE TABLE IF NOT EXISTS orders (
   id TEXT PRIMARY KEY,
   order_number INTEGER,
   customer_name TEXT,
+  phone TEXT,
+  order_type TEXT NOT NULL DEFAULT 'pickup' CHECK (order_type IN ('pickup', 'delivery')),
+  delivery_address TEXT,
   items TEXT NOT NULL,
   total INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'menunggu_pembayaran'
